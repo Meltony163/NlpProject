@@ -112,8 +112,7 @@ def generate_rag_response(user_text, emotion, language, retrieved):
 def build_response(user_text):
     language = LanguageIdentifier(user_text) or "unknown"
     emotion = EmotionClassifier(user_text)
-    intent_id = IntentClassifier(user_text)
-    intent = INTENT_LABELS.get(intent_id, "out_of_scope")
+    intent = IntentClassifier(user_text)
 
     if intent != "asking_mental_health_question":
         response = RULE_RESPONSES.get(intent, RULE_RESPONSES["out_of_scope"])

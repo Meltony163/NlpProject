@@ -69,14 +69,8 @@ def IntentClassifier(user_message):
   else:
     res = "None"
 
-  intent_to_id = {
-    "greeting": 0,
-    "goodbye": 1,
-    "gratitude": 2,
-    "asking_mental_health_question": 3,
-    "out_of_scope": 4}
-
-  if res not in intent_to_id.keys():
+  intents = ["greeting","goodbye","gratitude","asking_mental_health_question","out_of_scope"]
+  if res not in intents:
     response = {}
     response["role"] = chat_completion.choices[0].message.role
     response["content"] = chat_completion.choices[0].message.content
@@ -92,12 +86,12 @@ def IntentClassifier(user_message):
     else:
       res = "None"
 
-    if res not in intent_to_id.keys():
+    if res not in intents:
       return -1
     else:
-      return intent_to_id[res]
+      return res
   else:
-    return intent_to_id[res]
+    return res
 
 
 if __name__ == "__main__":
