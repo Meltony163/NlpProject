@@ -1,0 +1,9 @@
+flask
+python-dotenv
+scikit-learn
+torch
+sentence-transformers
+qdrant-client
+groq
+regex
+fastembed

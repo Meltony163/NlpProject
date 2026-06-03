@@ -3,9 +3,11 @@ from fastembed import SparseTextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client.models import SparseVector,Prefetch,FusionQuery,Fusion
 from dotenv import load_dotenv
+from pathlib import Path
 import os
 
-load_dotenv()
+dotenv_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 qdrant_api_key = os.getenv("qdrant_api_key")
 qdrant_url = os.getenv("qdrant_url")
@@ -52,8 +54,12 @@ def retreive(query):
   )
 
   results_list = []
-  for i in range(5):
-    results_list.append((results.points[i].payload['Context'],results.points[i].payload['Response']))
+  for point in getattr(results, 'points', []):
+    payload = getattr(point, 'payload', {}) or {}
+    context = payload.get('Context') or payload.get('context')
+    response = payload.get('Response') or payload.get('response')
+    if context is not None and response is not None:
+      results_list.append((context, response))
 
   return results_list
 

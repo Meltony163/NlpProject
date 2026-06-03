@@ -2,9 +2,11 @@ import re
 from groq import Groq
 
 from dotenv import load_dotenv
+from pathlib import Path
 import os
 
-load_dotenv()
+dotenv_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 api_key = os.getenv("API_KEY")
 

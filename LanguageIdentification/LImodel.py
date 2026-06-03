@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import re
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -6,6 +7,10 @@ import unicodedata
 import regex
 import joblib
 from sklearn.preprocessing import FunctionTransformer
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
+sys.modules['__main__'] = sys.modules[__name__]
 
 class RemovingPunctation(BaseEstimator, TransformerMixin):
     def __init__(self):
@@ -79,11 +84,12 @@ def to_lower(X):
 LT = FunctionTransformer(to_lower)
 
 
-full_pipeline = joblib.load("full_pipeline.pkl")
-LE = joblib.load("LabelEncoder.pkl")
+full_pipeline = joblib.load(MODEL_DIR / "full_pipeline.pkl")
+LE = joblib.load(MODEL_DIR / "LabelEncoder.pkl")
 
 def LanguageIdentifier(text):
-  return LE.inverse_transform(full_pipeline.predict(np.array([text])))
+  result = LE.inverse_transform(full_pipeline.predict(np.array([text])))
+  return result[0] if len(result) else None
 
 
 if __name__ == "__main__":

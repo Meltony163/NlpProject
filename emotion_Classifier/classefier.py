@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
 
 class TransformerClassifier(nn.Module):
     def __init__(self, vocab_size, embed_dim, num_heads, hidden_dim, num_layers, num_classes, max_len=64):
@@ -64,24 +67,49 @@ class Tokenizer:
             ids += [self.pad] * (self.max_len - len(ids))
         return ids
 
-state_dict = torch.load("best_scratch_transformer.pt", map_location="cpu")
+state_path = MODEL_DIR / "best_scratch_transformer.pt"
+vocab_path = MODEL_DIR / "vocab.dic"
 
-model.load_state_dict(state_dict)
+model = TransformerClassifier(
+    vocab_size=75306,
+    embed_dim=128,
+    num_heads=4,
+    hidden_dim=256,
+    num_layers=2,
+    num_classes=6,
+    max_len=64
+)
 
-vocab = torch.load ("vocab.dic")
+if state_path.exists():
+    state_dict = torch.load(state_path, map_location="cpu")
+    model.load_state_dict(state_dict)
+    model.eval()
+else:
+    model = None
+    print("Warning: emotion model weights not found at", state_path)
 
-tokenizer = Tokenizer (vocab) 
-def prediction (text ) : 
+if vocab_path.exists():
+    vocab = torch.load(vocab_path)
+    tokenizer = Tokenizer(vocab)
+else:
+    vocab = None
+    tokenizer = None
+    print("Warning: emotion tokenizer vocab not found at", vocab_path)
+
+def prediction(text):
 
     transform = {
     0 :  "sadness" , 
     1 : "joy" , 
-    2 : " love" , 
+    2 : "love" , 
     3 : "anger" , 
     4 : "fear" , 
     5 : "surprise"
 
 }
+
+    if model is None or tokenizer is None:
+        raise RuntimeError("Emotion model or tokenizer is not loaded.")
 
     ids = tokenizer(text)  # using your Tokenizer class
     input_ids = torch.tensor([ids]).to("cpu")  # shape: [batch_size, seq_len]
@@ -90,4 +118,5 @@ def prediction (text ) :
 
     return transform[pred.item()]
 
-print (prediction ("im very happy" ))
+if __name__ == "__main__":
+    print(prediction("I'm very happy"))
