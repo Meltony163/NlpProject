@@ -1,13 +1,4 @@
-﻿"""
-Unified RAG-based mental health support chatbot.
-Integrates:
-- Language detection
-- Emotion classification
-- Intent routing
-- Retrieval-augmented generation using Qdrant and Groq
-"""
-
-import os
+﻿import os
 import traceback
 from pathlib import Path
 
@@ -18,6 +9,7 @@ from LanguageIdentification.LImodel import LanguageIdentifier
 from emotion_Classifier.classefier import prediction as EmotionClassifier
 from intent_Classifier.IntentClassifier import IntentClassifier
 from Retreival.Retreival import retreive
+from Translator.Tmodel import translate
 
 try:
     from groq import Groq
@@ -35,14 +27,6 @@ if Groq is not None and API_KEY:
     except Exception as exc:
         print("Warning: failed to initialize Groq client:", exc)
 
-INTENT_LABELS = {
-    0: "greeting",
-    1: "goodbye",
-    2: "gratitude",
-    3: "asking_mental_health_question",
-    4: "out_of_scope",
-}
-
 RULE_RESPONSES = {
     "greeting": "Hello! I am here to support you. How are you feeling today?",
     "goodbye": "Take care. If you need to talk again, I am here for you.",
@@ -53,24 +37,29 @@ RULE_RESPONSES = {
 app = Flask(__name__)
 
 
-def build_rag_prompt(user_text, emotion, language, retrieved):
+def build_system_prompt(emotion, language, retrieved):
     sections = []
     for index, (context, response) in enumerate(retrieved[:4], start=1):
-        sections.append(f"Knowledge {index}: {context}\nResponse {index}: {response}")
+        sections.append(
+            f"Example {index}:\n"
+            f"  Patient: {context}\n"
+            f"  Counselor: {response}"
+        )
 
-    context_block = "\n\n".join(sections) if sections else "No retrieval contexts were found."
+    examples_block = "\n\n".join(sections) if sections else "No examples available."
+
     return (
-        "You are a compassionate mental health support assistant. "
-        "Use the retrieved counseling knowledge to answer the user in a grounded and empathetic way. "
-        "If the user needs anxiety, depression, stress, or crisis support, give kind and safe guidance. "
-        "Answer the query in the same language that the user used whenever possible.\n\n"
-        f"User language: {language}\n"
-        f"User emotion: {emotion}\n"
-        f"User question: {user_text}\n\n"
-        "Retrieved knowledge:\n"
-        f"{context_block}\n\n"
-        "Provide a clear and empathetic answer grounded in the knowledge above. "
-        "If you cannot answer from the retrieved content, still respond kindly and safely."
+        "You are a compassionate mental health support assistant.\n"
+        "Use the following counseling examples to guide your response in a grounded and empathetic way.\n"
+        "If the user needs anxiety, depression, stress, or crisis support, give kind and safe guidance.\n"
+        f"Answer the query in the same language that the user used (user language: {language}).\n"
+        f"The user's detected emotion is: {emotion}.\n\n"
+        "--- Retrieved Counseling Examples ---\n"
+        f"{examples_block}\n"
+        "--- End of Examples ---\n\n"
+        "Now respond to the user's message below with a clear and empathetic answer "
+        "grounded in the examples above. "
+        "If you cannot answer from the examples, still respond kindly and safely."
     )
 
 
@@ -83,14 +72,11 @@ def generate_rag_response(user_text, emotion, language, retrieved):
 
     system_message = {
         "role": "system",
-        "content": (
-            "You are an empathetic mental health chatbot. Answer with compassion, grounding, and respect. "
-            "When possible, respond in the user's language."
-        ),
+        "content": build_system_prompt(emotion, language, retrieved),
     }
     user_message = {
         "role": "user",
-        "content": build_rag_prompt(user_text, emotion, language, retrieved),
+        "content": user_text,
     }
 
     try:
@@ -111,8 +97,18 @@ def generate_rag_response(user_text, emotion, language, retrieved):
 
 def build_response(user_text):
     language = LanguageIdentifier(user_text) or "unknown"
-    emotion = EmotionClassifier(user_text)
-    intent = IntentClassifier(user_text)
+
+    if language != "en":
+        try:
+            translated_text = translate(user_text, language, "en")
+        except Exception as exc:
+            print(f"Translation failed ({language} -> en):", exc)
+            translated_text = user_text
+    else:
+        translated_text = user_text
+
+    emotion = EmotionClassifier(translated_text)
+    intent = IntentClassifier(translated_text)
 
     if intent != "asking_mental_health_question":
         response = RULE_RESPONSES.get(intent, RULE_RESPONSES["out_of_scope"])
@@ -124,7 +120,7 @@ def build_response(user_text):
             "sources": [],
         }
 
-    retrieved = retreive(user_text)
+    retrieved = retreive(translated_text)
     response = generate_rag_response(user_text, emotion, language, retrieved)
     sources = [context for context, _ in retrieved]
 

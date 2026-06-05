@@ -30,7 +30,7 @@ lang_map = {
     "ja": "jpn_Jpan"
 }
 
-def translate(text, src_lang):
+def translate(text, src_lang, target_lang):
     tokenizer.src_lang = lang_map[src_lang]
 
     inputs = tokenizer(
@@ -39,7 +39,7 @@ def translate(text, src_lang):
         truncation=True
     ).to(device)
 
-    forced_bos_token_id = tokenizer.convert_tokens_to_ids(lang_map['en'])
+    forced_bos_token_id = tokenizer.convert_tokens_to_ids(lang_map[target_lang])
 
     outputs = model.generate(
         **inputs,
